@@ -5,6 +5,7 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("./models/User");
+const authMiddleware = require("./middleware/authMiddleware");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,7 +16,9 @@ app.use(express.json());
 
 
 
-mongoose.connect('mongodb+srv://prodify:Prodify786@prodify.ocpmvcq.mongodb.net/?appName=Prodify')
+require('dotenv').config();
+
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.log(err));
 
@@ -60,7 +63,7 @@ app.post("/api/users/login", async (req, res) => {
     if (!isMatch) return res.status(400).send({ message: "Invalid password" });
 
     // create JWT token
-    const token = jwt.sign({ userId: user._id }, "secretkey", { expiresIn: "1h" });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
     res.send({ message: "Login successful", token });
   } catch (err) {
@@ -68,9 +71,13 @@ app.post("/api/users/login", async (req, res) => {
   }
 });
 
-app.post('/api/products', async (req, res) => {
+app.post('/api/products', authMiddleware, async (req, res) => {
   try {
-    const product = new Product(req.body);
+
+    const product = new Product({
+      ...req.body,
+      user: req.userId
+    });
     await product.save();
     res.send(product);
   } catch (err) {
@@ -83,32 +90,46 @@ app.get('/api/products', async (req, res) => {
   res.send(products);
 });
 
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', authMiddleware, async (req, res) => {
   try {
-    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
-    if (!deletedProduct) {
-      return res.status(404).send({ message: "Product not found" });
-    }
-    res.send({ message: "Product deleted", product: deletedProduct });
+    const product = await Product.findById(req.params.id);
+
+if (!product) {
+  return res.status(404).send({ message: "Product not found" });
+}
+
+// check ownership
+if (product.user.toString() !== req.userId) {
+  return res.status(403).send({ message: "Not authorized" });
+}
+
+await product.deleteOne();
+res.send({ message: "Product deleted" });
   } catch (err) {
     res.status(500).send(err);
   }
 });
 
 // Update a product by ID
-app.put('/api/products/:id', async (req, res) => {
+app.put('/api/products/:id', authMiddleware, async (req, res) => {
   try {
-    const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,    // ID from URL
-      req.body,         // new data sent
-      { new: true }     // return the updated product
-    );
+    const product = await Product.findById(req.params.id);
 
-    if (!updatedProduct) {
-      return res.status(404).send({ message: "Product not found" });
-    }
+if (!product) {
+  return res.status(404).send({ message: "Product not found" });
+}
 
-    res.send(updatedProduct);
+if (product.user.toString() !== req.userId) {
+  return res.status(403).send({ message: "Not authorized" });
+}
+
+const updatedProduct = await Product.findByIdAndUpdate(
+  req.params.id,
+  req.body,
+  { new: true }
+);
+
+res.send(updatedProduct);
   } catch (err) {
     res.status(500).send(err);
   }
