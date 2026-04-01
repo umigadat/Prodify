@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "./ProductList.css";
@@ -19,6 +19,15 @@ export default function ProductList() {
 
   const token = localStorage.getItem("token");
 
+  const fetchProducts = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/products`);
+      setProducts(res.data);
+    } catch (err) {
+      setMessage("Error fetching products.");
+    }
+  }, []);
+
   useEffect(() => {
     if (!token) {
       setMessage("Please login first.");
@@ -26,16 +35,7 @@ export default function ProductList() {
       return;
     }
     fetchProducts();
-  }, [token]);
-
-  const fetchProducts = async () => {
-    try {
-      const res = await axios.get(`${API_BASE}/api/products`);
-      setProducts(res.data);
-    } catch (err) {
-      setMessage("Error fetching products.");
-    }
-  };
+  }, [token, navigate, fetchProducts]);
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
