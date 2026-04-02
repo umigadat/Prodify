@@ -14,7 +14,7 @@ export default function Login() {
     e.preventDefault();
     setMessage("");
     try {
-      const res = await axios.post("http://localhost:3000/api/users/login", {
+      const res = await axios.post("https://prodify-2e1h.onrender.com/api/users/login", {
         email,
         password,
       });

@@ -3,7 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "./ProductList.css";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://prodify-2e1h.onrender.com";
 
 export default function ProductList() {
   const [products, setProducts] = useState([]);
